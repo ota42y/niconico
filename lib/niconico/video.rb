@@ -76,6 +76,8 @@ class Niconico
 
       @ms = getflv[:ms]
       @getflv_thread_id = getflv[:thread_id]
+      @needs_key = (getflv[:needs_key] == "1")
+      @user_id = getflv[:user_id]
 
       @tags ||= @page.search("#video_tags a[rel=tag]").map(&:inner_text)
       @mylist_comment ||= nil
@@ -114,6 +116,12 @@ class Niconico
       params[:thread] = @getflv_thread_id
       params[:fork] = 1 if owner
 
+      if @needs_key
+        params = params.merge(get_threadkey)
+        params[:user_id] = @user_id
+        sleep 5
+      end
+
       begin
         res = @agent.get(URI.join(@ms, "thread"), params)
       rescue Mechanize::ResponseCodeError => e
@@ -121,6 +129,11 @@ class Niconico
         raise e
       end
       res.body
+    end
+
+    def get_threadkey
+      res = @agent.get("http://flapi.nicovideo.jp/api/getthreadkey", thread: @getflv_thread_id)
+      Hash[URI.decode_www_form(res.body).map{|(k,v)| [k.to_sym,v]}]
     end
 
     def get_video_by_other
